@@ -90,7 +90,7 @@ class AirCargoProblem(Problem):
                         precond_neg = []
                         effect_add = [expr("At({}, {})".format(c, a))]
                         effect_rem = [expr("In({}, {})".format(c, p))]
-                        unload = Action(expr("Load({}, {}, {})".format(c, p, a)),
+                        unload = Action(expr("Unload({}, {}, {})".format(c, p, a)),
                                       [precond_pos, precond_neg],
                                       [effect_add, effect_rem])
                         unloads.append(unload)
@@ -231,6 +231,40 @@ class AirCargoProblem(Problem):
         """
         # TODO implement (see Russell-Norvig Ed-3 10.2.3  or Russell-Norvig Ed-2 11.2)
         count = 0
+
+        # find the needed literals for the goal
+        goals = self.goal
+
+        # list for actions needed to achieve the goal
+        goal_actions = []
+
+        # find the actions that have 1 or more goal effects
+        for action in self.actions_list:
+            effects = []
+            for effect in action.effect_add:
+                if effect in goals:
+                    effects.append(effect)
+            # append the appropriate action
+            if len(effects) > 0:
+                goal_actions.append(effects)
+
+        while len(goals) > 0:
+            # find the action that has the most number of effects
+            max_len = 0
+            for action in goal_actions:
+                # remove effects that are already checked
+                for effect in action:
+                    if effect not in goals:
+                        action.remove(effect)
+                if len(action) > max_len:
+                    max_len = len(action)
+                    max_action = action
+            # remove max_action effects from goals
+            for effect in max_action:
+                goals.remove(effect)
+            # 1 action done, so +1 to count
+            count += 1
+
         return count
 
 
