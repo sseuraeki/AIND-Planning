@@ -61,6 +61,7 @@ class AirCargoProblem(Problem):
             """
             loads = []
             # TODO create all load ground actions from the domain Load action
+
             for c in self.cargos:
                 for p in self.planes:
                     for a in self.airports:
@@ -82,6 +83,7 @@ class AirCargoProblem(Problem):
             """
             unloads = []
             # TODO create all Unload ground actions from the domain Unload action
+
             for c in self.cargos:
                 for p in self.planes:
                     for a in self.airports:
@@ -130,21 +132,13 @@ class AirCargoProblem(Problem):
         # TODO implement
         possible_actions = []
 
-        pos_cons = []
-        neg_cons = []
-
-        # map state str's booleans to initial state
-        # add them to appropriate list
-        for fluent, boolean in zip(self.state_map, state):
-            if boolean == "T":
-                pos_cons.append(fluent)
-            elif boolean == "F":
-                neg_cons.append(fluent)
+        # convert state string to fluents
+        fs = decode_state(state, self.state_map)
 
         # for each action, check whether the precons suffice
         for action in self.actions_list:
-            if set(action.precond_pos).issubset(pos_cons) \
-            and set(action.precond_neg).issubset(neg_cons):
+            if set(action.precond_pos).issubset(fs.pos):
+            #and set(action.precond_neg).issubset(fs.neg):
                 possible_actions.append(action)
 
         return possible_actions
@@ -162,34 +156,33 @@ class AirCargoProblem(Problem):
         new_state = FluentState([], [])
 
         # convert state string to fluents
-        pos_cons = []
-        neg_cons = []
-        for fluent, boolean in zip(self.state_map, state):
-            if boolean == "T":
-                pos_cons.append(fluent)
-            elif boolean == "F":
-                neg_cons.append(fluent)
+        fs = decode_state(state, self.state_map)
 
         # check whether the action is in self.actions(state)
         # if not, return an empty new_state
-        for act in self.actions(state):
-            # convert action object to string representation
-            string = str(act.name) + str(act.args)
-            if string == str(action):
-                # effects_add
-                for effect in act.effect_add:
-                    if effect not in pos_cons:
-                        pos_cons.append(effect)
-                    if effect in neg_cons:
-                        neg_cons.remove(effect)
-                # effects_rem
-                for effect in act.effect_rem:
-                    if effect in pos_cons:
-                        pos_cons.remove(effect)
-                    if effect not in neg_cons:
-                        neg_cons.append(effect)
-                new_state = FluentState(pos_cons, neg_cons)
+        pos_list = fs.pos
+        neg_list = fs.neg
 
+        for possible_action in self.actions(state):
+            # get each object's name and args to see whether they are the same
+            if action.name == possible_action.name \
+            and action.args == possible_action.args:
+                # for pos effects, add them if not present
+                for effect in action.effect_add:
+                    if effect not in pos_list:
+                        pos_list.append(effect)
+                    if effect in neg_list:
+                        neg_list.remove(effect)
+                # the opposite
+                for effect in action.effect_rem:
+                    if effect not in neg_list:
+                        neg_list.append(effect)
+                    if effect in pos_list:
+                        pos_list.remove(effect)
+                new_state = FluentState(pos_list, neg_list)
+                return encode_state(new_state, self.state_map)
+
+        # return empty state
         return encode_state(new_state, self.state_map)
 
     def goal_test(self, state: str) -> bool:
@@ -233,12 +226,18 @@ class AirCargoProblem(Problem):
         count = 0
 
         # find the needed literals for the goal
-        goals = self.goal
+        goals = list(self.goal)
+
+        # if goals are satisfied in the current state, return 0
+        fs = decode_state(node.state, self.state_map)
+        if set(goals).issubset(fs.pos):
+            return 0
 
         # list for actions needed to achieve the goal
         goal_actions = []
 
         # find the actions that have 1 or more goal effects
+        # negative effects should be ignored
         for action in self.actions_list:
             effects = []
             for effect in action.effect_add:
