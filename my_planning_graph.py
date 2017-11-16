@@ -548,6 +548,7 @@ class PlanningGraph():
             for parent2 in node_s2.parents:
                 if set(literals).issubset(parent2.action.effect_add):
                     return False
+                # otherwise check if they are mutex
                 if parent.is_mutex(parent2) or parent2.is_mutex(parent):
                     return True
         return False
@@ -566,12 +567,11 @@ class PlanningGraph():
             goal_found = False
             level = 0
             while not goal_found:
-                # make a list of S level nodes' literals
-                level_literals = []
                 for node in self.s_levels[level]:
                     if node.is_pos and node.symbol == g:
                         level_sum += level
                         goal_found = True
+                        # break the loop if goal found for efficiency
                         break
                 level += 1
 
