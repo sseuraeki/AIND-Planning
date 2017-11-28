@@ -533,25 +533,13 @@ class PlanningGraph():
         """
         # TODO test for Inconsistent Support between nodes
 
-        # get literals for both S nodes
-        literals = []
-        if node_s1.is_pos:
-            literals.append(node_s1.symbol)
-        if node_s2.is_pos:
-            literals.append(node_s2.symbol)
-
         for parent in node_s1.parents:
             # if an action can achieve both state literals,
             # the states should not be mutex
-            if set(literals).issubset(parent.action.effect_add):
-                return False
             for parent2 in node_s2.parents:
-                if set(literals).issubset(parent2.action.effect_add):
+                if not parent.is_mutex(parent2):
                     return False
-                # otherwise check if they are mutex
-                if parent.is_mutex(parent2) or parent2.is_mutex(parent):
-                    return True
-        return False
+        return True
 
     def h_levelsum(self) -> int:
         """The sum of the level costs of the individual goals (admissible if goals independent)
